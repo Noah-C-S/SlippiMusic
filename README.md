@@ -10,7 +10,7 @@ An application for playing music while playing with Rollback Netcode. Since musi
 	- menu: True if you want the program to emulate menu music, False otherwise.
 - Put the music files in the melee/music folder. The program doesn't emulate the "intro" and "looping" sections of Melee's music, so while it will loop whatever music you play, they don't loop very well, so it's best if these are at least 8 minutes long.
 	- You can just use the files from the "melee/music" folder in the repository
-- The file names are defined by the musicConfig.txt file in the format "stageID:filename" where the stageID is the internal id for each stage. The menu music will always be "menu.mp3" [The stage IDs are listed here.](https://www.ssbwiki.com/Debug_menu_(SSBM)#stages)
+- The file names are defined by the musicConfig.txt file in the format "stageID:filename" where the stageID is the internal id for each stage. The menu music will always be "menu.mp3". [The stage IDs are listed here.](https://www.ssbwiki.com/Debug_menu_(SSBM)#stages)
 - Then just run slippiMusic.exe and it should work as long as it's set up properly, or output an error if it's not. Play a game or two in single player mode to test it out.
 
 # Notes

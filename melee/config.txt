@@ -1,0 +1,4 @@
+path = C:\Program Files\slippi2\FM-Slippi
+slippi_port = 51441
+volume = 70
+menu = False

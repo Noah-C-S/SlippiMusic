@@ -9,11 +9,11 @@ An application for playing music while playing with Rollback Netcode. Since musi
 	- volume: 0 is mute, 100 is loudest
 	- menu: True if you want the program to emulate menu music, False otherwise.
 - Put the music files in the melee/music folder. The program doesn't emulate the "intro" and "looping" sections of Melee's music, so while it will loop whatever music you play, they don't loop very well, so it's best if these are at least 8 minutes long.
-	-You can just use the files from the "melee/music" folder in the repository
+	- You can just use the files from the "melee/music" folder in the repository
 - The file names are defined by the musicConfig.txt file in the format "stageID:filename" where the stageID is the internal id for each stage. [They are listed here.](https://www.ssbwiki.com/Debug_menu_(SSBM)#stages)
 - Then just run slippiMusic.exe and it should work as long as it's set up properly, or output an error if it's not. Play a game or two in single player mode to test it out.
 
 # Notes
-If you provide a path for the Dolphin executable, SlippiMusic will launch the game for you, and upon quitting Dolphin completely, SlippiMusic will exit automatically. You also need the "slippienablespectator" property set to True in your Dolphin.ini file; if it is false and you provided a path, SlippiMusic will attempt to set it to True and will log if it fails.  
-If a command line window launches and immediately closes, that means the program encountered an unhandled error. Unfortunately, you'll have to run it in the command line to see what it is.  
-This program was adapted from some code in the [libmelee project](https://github.com/altf4/libmelee/) and is thus released under the GNU Lesser General Puglic License v3. 
+If you provide a path for the Dolphin executable, SlippiMusic will launch the game for you, and upon quitting Dolphin completely, SlippiMusic will exit automatically. You also need the "slippienablespectator" property set to True in your Dolphin.ini file; if it is false and you provided a path, SlippiMusic will attempt to set it to True and will log if it fails.<br>
+If a command line window launches and immediately closes, that means the program encountered an unhandled error. Unfortunately, you'll have to run it in the command line to see what it is.<br>
+This program was adapted from some of the code in the [libmelee project](https://github.com/altf4/libmelee/) and is thus released under the GNU Lesser General Puglic License v3. <br>

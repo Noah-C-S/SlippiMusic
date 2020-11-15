@@ -16,4 +16,4 @@ An application for playing music while playing with Rollback Netcode. Since musi
 # Notes
 If you provide a path for the Dolphin executable, SlippiMusic will launch the game for you, and upon quitting Dolphin completely, SlippiMusic will exit automatically. You also need the "slippienablespectator" property set to True in your Dolphin.ini file; if it is false and you provided a path, SlippiMusic will attempt to set it to True and will log if it fails.<br>
 If a command line window launches and immediately closes, that means the program encountered an unhandled error. Unfortunately, you'll have to run it in the command line to see what it is.<br>
-This program was adapted from some of the code in the [libmelee project](https://github.com/altf4/libmelee/) and is thus released under the GNU Lesser General Puglic License v3. <br>
+This program was adapted from some of the code in the [libmelee project](https://github.com/altf4/libmelee/) and is thus released under the GNU Lesser General Public License v3. <br>

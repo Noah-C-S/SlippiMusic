@@ -1,4 +1,4 @@
-path = /Applications
+path = C:\Program Files\slipp
 slippi_port = 51441
 volume = 70
 menu = True

@@ -39,7 +39,9 @@ def execute_and_quit(command, env):
         print("Dolphin closed! exiting...")
         os._exit(0)
     except PermissionError:
-        print("Access denied to your Dolphin executable! Can't open it manually")
+        print("Access denied to your Dolphin executable! Can't open Dolphin automatically")
+    except FileNotFoundError:
+        print("Path to your Dolphin executable is incorrect! Can't open Dolphin automatically")
 
 # pylint: disable=too-many-instance-attributes
 class Console:

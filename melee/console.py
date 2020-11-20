@@ -29,11 +29,17 @@ class SlippiVersionTooLow(Exception):
 def get_slippiMusic_config_path():
     return os.path.join(os.path.dirname(__file__), 'config.txt')
 
-#Checks if the process has disconnected (in this case, checks if dolphin has closed and automatically quits the program if it has)
-def check_disconnected(process):
-    process.wait()
-    print("Dolphin closed! Exiting...")
-    os._exit(0)
+def execute_and_quit(command, env):
+    if platform.system() == "Darwin": #mac
+        command.insert(0, "open") #can't run directly on mac, gotta call open on it
+        command.append("-W") #tells thread to wait until program exits
+    try:
+        process = subprocess.Popen(command, env=env)
+        process.wait()
+        print("Dolphin closed! exiting...")
+        os._exit(0)
+    except PermissionError:
+        print("Access denied to your Dolphin executable! Can't open it manually")
 
 # pylint: disable=too-many-instance-attributes
 class Console:
@@ -69,15 +75,18 @@ class Console:
         #self._costumes = {0:0, 1:0, 2:0, 3:0}
         #self._cpu_level = {0:0, 1:0, 2:0, 3:0}
         self._process = None
-        
-        mixer.init()
+        try:
+            mixer.init()
+        except pg_error:
+            print("Failed to initialize the mixer! Check that your audio devices are working properly")
         #self.volume = volume
-        mixer.music.set_volume(volume/100.0)
+        else:
+            mixer.music.set_volume(volume/100.0)
         
         self.menu = menu
         
         self.fileNames = [None]*33
-        configPath = os.path.join(os.path.dirname(__file__), 'music\musicConfig.txt')
+        configPath = os.path.normpath(os.path.join(os.path.dirname(__file__), 'music/musicConfig.txt'))
         try:
             configFile = open(configPath)
         except FileNotFoundError:
@@ -93,7 +102,7 @@ class Console:
                     self.fileNames[stageID] = split[1].rstrip()
                 except ValueError:
                     continue
-                   
+        self._slippstream = SlippstreamClient(self.slippi_address, self.slippi_port)        
         if self.is_dolphin:
             self._slippstream = SlippstreamClient(self.slippi_address, self.slippi_port)
             if self.path:
@@ -110,7 +119,7 @@ class Console:
                                 config.write(dolphinfile)
                         except PermissionError:
                             print("Access denied to your Dolphin.ini file at " + dolphin_config_path + "! Means I can't automatically configure Dolphin. Run as administrator or make open that config file and make sure that \"slippienablespectator\" is set to True.")
-                except configparser.NoSectionError:
+                except (configparser.NoSectionError, KeyError):
                     print("Invalid Dolphin.ini file! Usually means your Dolphin path is wrong.")
         #else:
             #self._slippstream = SLPFileStreamer(self.path)  
@@ -141,6 +150,8 @@ class Console:
             exe_name = "dolphin-emu"
             if platform.system() == "Windows":
                 exe_name = "Dolphin.exe"
+            elif platform.system() == "Darwin":
+                exe_name = "Slippi Dolphin.app"
 
             exe_path = ""
             if self.path:
@@ -158,9 +169,8 @@ class Console:
             if environment_vars is not None:
                 for var, value in environment_vars.items():
                     env[var] = value
-            self._process = subprocess.Popen(command, env=env)
-            t = threading.Thread(target = check_disconnected, args = [self._process], daemon = True)
-            t.start()
+            t = threading.Thread(target = execute_and_quit, args = [command, env], daemon = True)
+            t.start()                
 
     def stop(self):
         """ Stop the console.
@@ -269,7 +279,7 @@ class Console:
         try:
             #print(os.path.dirname(__file__))
             dirname = os.path.dirname(__file__)
-            musicPath = os.path.join(dirname, 'music\\' + fileName)
+            musicPath = os.path.normpath(os.path.join(dirname, 'music/' + fileName))
             print(musicPath)
             mixer.music.stop()
             mixer.music.load(musicPath)
@@ -287,9 +297,9 @@ class Console:
                     return self.path + "/User/Config/"
                 # Otherwise, this must be an appimage install. Use the .config
                 return str(Path.home()) + "/.config/SlippiOnline/Config/"
-            else:
-                return self.path + "/User/Config/"
-        return ""
+            elif platform.system() == "Darwin": #mac
+                return os.path.join(self.path, "Slippi Dolphin.app/Contents/Resources/User/Config/")
+            return self.path + "/User/Config/"
 
 
  

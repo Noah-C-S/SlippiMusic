@@ -13,6 +13,7 @@ import subprocess
 import platform
 import base64
 import sys
+from pathlib import Path
 from pygame import mixer
 from pygame import error as pg_error
 import numpy as np
@@ -29,19 +30,10 @@ class SlippiVersionTooLow(Exception):
 def get_slippiMusic_config_path():
     return os.path.join(os.path.dirname(__file__), 'config.txt')
 
-def execute_and_quit(command, env):
-    if platform.system() == "Darwin": #mac
-        command.insert(0, "open") #can't run directly on mac, gotta call open on it
-        command.append("-W") #tells thread to wait until program exits
-    try:
-        process = subprocess.Popen(command, env=env)
-        process.wait()
-        print("Dolphin closed! exiting...")
-        os._exit(0)
-    except PermissionError:
-        print("Access denied to your Dolphin executable! Can't open Dolphin automatically")
-    except FileNotFoundError:
-        print("Path to your Dolphin executable is incorrect! Can't open Dolphin automatically")
+def check_disconnected(process):
+    process.wait()
+    print("Dolphin closed! exiting...")
+    os._exit(0)
 
 # pylint: disable=too-many-instance-attributes
 class Console:
@@ -171,8 +163,18 @@ class Console:
             if environment_vars is not None:
                 for var, value in environment_vars.items():
                     env[var] = value
-            t = threading.Thread(target = execute_and_quit, args = [command, env], daemon = True)
-            t.start()                
+            #print(command)
+            if platform.system() == "Darwin": #mac
+                command.insert(0, "open") #can't run directly on mac, gotta call open on it
+                command.append("-W") #tells thread to wait until program exits
+            try:
+                self._process = subprocess.Popen(command, env=env)
+                t = threading.Thread(target = check_disconnected, args = [self._process], daemon = True)
+                t.start()   
+            except PermissionError:
+                    print("Access denied to your Dolphin executable! Can't open Dolphin automatically")
+            except FileNotFoundError:
+                print("Path to your Dolphin executable is incorrect! Can't open Dolphin automatically")              
 
     def stop(self):
         """ Stop the console.

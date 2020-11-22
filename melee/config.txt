@@ -1,4 +1,4 @@
-path = /home/noah/Downloads/slippi/usr/bin
+path = C:/Program Files/slippi2/FM-Slippi/Dolphin.exe
 slippi_port = 51441
-volume = 70
+volume = 40
 menu = True

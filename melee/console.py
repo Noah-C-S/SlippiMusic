@@ -289,7 +289,7 @@ class Console:
                 if os.path.isdir(normpath):
                     return normpath
                 # Otherwise, this must be an appimage install. Use the .config
-                return os.path.join(str(Path.home()), "/.config/SlippiOnline/Config/Dolphin.ini")
+                return os.path.join(str(Path.home()), ".config/SlippiOnline/Config/Dolphin.ini")
             elif platform.system() == "Darwin": #mac
                 return os.path.join(self.path, "Contents/Resources/User/Config/Dolphin.ini")
             return normpath

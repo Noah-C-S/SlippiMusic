@@ -134,19 +134,7 @@ class Console:
             environment_vars (dict, optional): Dict (string->string) of environment variables to set
         """
         if self.path:
-            """exe_name = "dolphin-emu"
-            if platform.system() == "Windows":
-                exe_name = "Dolphin.exe"
-            elif platform.system() == "Darwin":
-                exe_name = "Slippi Dolphin.app"
-
-            exe_path = ""
-            if self.path:
-                exe_path = self.path
-            command = [exe_path + "/" + exe_name] """
-            command = [self.path]
-            #if platform.system() == "Linux" and os.path.isfile(self.path):
-                #command = [self.path]
+            command = [os.path.normpath(self.path)]
             if iso_path is not None:
                 command.append("-e")
                 command.append(iso_path)

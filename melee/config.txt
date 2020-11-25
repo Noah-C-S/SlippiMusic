@@ -1,4 +1,4 @@
-path = /home/noah/Downloads/Slippi.AppImage
+path = /Applications/Slippi Dolphin.app
 slippi_port = 51441
 volume = 40
 menu = True

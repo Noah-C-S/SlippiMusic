@@ -160,7 +160,7 @@ class Console:
             #print(command)
             if platform.system() == "Darwin": #mac
                 command.insert(0, "open") #can't run directly on mac, gotta call open on it
-                #command.append("-W") #tells thread to wait until program exits
+                command.append("-W") #tells thread to wait until program exits
             try:
                 self._process = subprocess.Popen(command, env=env)
                 t = threading.Thread(target = check_disconnected, args = [self._process], daemon = True)

@@ -50,7 +50,9 @@ def signal_handler(sig, frame):
     console.stop()
     print("Shutting down cleanly...")
     sys.exit(0)
-    
+
+signal.signal(signal.SIGINT, signal_handler)
+
 # Run the console
 if(path):
     console.run()

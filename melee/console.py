@@ -13,6 +13,7 @@ import subprocess
 import platform
 import base64
 import sys
+from pathlib import Path
 from pygame import mixer
 from pygame import error as pg_error
 import numpy as np
@@ -29,10 +30,9 @@ class SlippiVersionTooLow(Exception):
 def get_slippiMusic_config_path():
     return os.path.join(os.path.dirname(__file__), 'config.txt')
 
-#Checks if the process has disconnected (in this case, checks if dolphin has closed and automatically quits the program if it has)
 def check_disconnected(process):
     process.wait()
-    print("Dolphin closed! Exiting...")
+    print("Dolphin closed! exiting...")
     os._exit(0)
 
 # pylint: disable=too-many-instance-attributes
@@ -41,21 +41,19 @@ class Console:
     """
     def __init__(self,
                  path=None,
-                 is_dolphin=True,
                  slippi_address="127.0.0.1",
                  slippi_port=51441,
                  volume = 70,
                  menu = False):
         """Create a Console object
         Args:
-            path (str): Path to the directory where your dolphin executable is located.
+            path (str): Path to your dolphin executable.
                 If None, will assume the dolphin is remote and won't try to configure it.
             slippi_address (str): IP address of the Dolphin / Wii to connect to.
             slippi_port (int): UDP port that slippi will listen on
             volume (int) the volume music should play at, between 0 and 100
             menu (boolean) True if you want menu music to play, false otherwise. 
         """
-        self.is_dolphin = is_dolphin
         self.path = path
         self.slippi_address = slippi_address
         """(str): IP address of the Dolphin / Wii to connect to."""
@@ -64,20 +62,19 @@ class Console:
         self.eventsize = [0] * 0x100
         self.cursor = 0
         self._frame = 0
-        """(str): The SLP version this stream/file currently is."""
-        self._use_manual_bookends = False
-        #self._costumes = {0:0, 1:0, 2:0, 3:0}
-        #self._cpu_level = {0:0, 1:0, 2:0, 3:0}
         self._process = None
-        
-        mixer.init()
+        try:
+            mixer.init()
+        except pg_error:
+            print("Failed to initialize the mixer! Check that your audio devices are working properly")
         #self.volume = volume
-        mixer.music.set_volume(volume/100.0)
+        else:
+            mixer.music.set_volume(volume/100.0)
         
         self.menu = menu
         
         self.fileNames = [None]*33
-        configPath = os.path.join(os.path.dirname(__file__), 'music\musicConfig.txt')
+        configPath = os.path.normpath(os.path.join(os.path.dirname(__file__), 'music/musicConfig.txt'))
         try:
             configFile = open(configPath)
         except FileNotFoundError:
@@ -93,25 +90,24 @@ class Console:
                     self.fileNames[stageID] = split[1].rstrip()
                 except ValueError:
                     continue
-                   
-        if self.is_dolphin:
-            self._slippstream = SlippstreamClient(self.slippi_address, self.slippi_port)
-            if self.path:
-                # Setup some dolphin config options
-                dolphin_config_path = self._get_dolphin_config_path() + "Dolphin.ini"
-                config = configparser.SafeConfigParser()
-                config.read(dolphin_config_path)
-                try:
-                    self.slippi_port = int(config["Core"]["slippispectatorlocalport"])
-                    if(not config["Core"]["slippienablespectator"]): #this needs to be true in order for this to connect to slippi
-                        config.set("Core", 'slippienablespectator', "True")
-                        try:
-                            with open(dolphin_config_path, 'w') as dolphinfile:
-                                config.write(dolphinfile)
-                        except PermissionError:
-                            print("Access denied to your Dolphin.ini file at " + dolphin_config_path + "! Means I can't automatically configure Dolphin. Run as administrator or make open that config file and make sure that \"slippienablespectator\" is set to True.")
-                except configparser.NoSectionError:
-                    print("Invalid Dolphin.ini file! Usually means your Dolphin path is wrong.")
+        #self._slippstream = SlippstreamClient(self.slippi_address, self.slippi_port)        
+        if self.path:
+            # Setup some dolphin config options
+            dolphin_config_path = self._get_dolphin_config_path()
+            config = configparser.SafeConfigParser()
+            config.read(dolphin_config_path)
+            try:
+                self.slippi_port = int(config["Core"]["slippispectatorlocalport"])
+                if(not config["Core"]["slippienablespectator"]): #this needs to be true in order for this to connect to slippi
+                    config.set("Core", 'slippienablespectator', "True")
+                    try:
+                        with open(dolphin_config_path, 'w') as dolphinfile:
+                            config.write(dolphinfile)
+                    except PermissionError:
+                        print("Access denied to your Dolphin.ini file at " + dolphin_config_path + "! Means I can't automatically configure Dolphin. Run as administrator or make open that config file and make sure that \"slippienablespectator\" is set to True.")
+            except (configparser.NoSectionError, KeyError):
+                print("Invalid Dolphin.ini file! Usually means your Dolphin path is wrong.")
+        self._slippstream = SlippstreamClient(self.slippi_address, self.slippi_port)
         #else:
             #self._slippstream = SLPFileStreamer(self.path)  
 
@@ -137,17 +133,8 @@ class Console:
                 if not using the default
             environment_vars (dict, optional): Dict (string->string) of environment variables to set
         """
-        if self.is_dolphin and self.path:
-            exe_name = "dolphin-emu"
-            if platform.system() == "Windows":
-                exe_name = "Dolphin.exe"
-
-            exe_path = ""
-            if self.path:
-                exe_path = self.path
-            command = [exe_path + "/" + exe_name]
-            if platform.system() == "Linux" and os.path.isfile(self.path):
-                command = [self.path]
+        if self.path:
+            command = [os.path.normpath(self.path)]
             if iso_path is not None:
                 command.append("-e")
                 command.append(iso_path)
@@ -158,9 +145,18 @@ class Console:
             if environment_vars is not None:
                 for var, value in environment_vars.items():
                     env[var] = value
-            self._process = subprocess.Popen(command, env=env)
-            t = threading.Thread(target = check_disconnected, args = [self._process], daemon = True)
-            t.start()
+            #print(command)
+            if platform.system() == "Darwin": #mac
+                command.insert(0, "open") #can't run directly on mac, gotta call open on it
+                command.append("-W") #tells thread to wait until program exits
+            try:
+                self._process = subprocess.Popen(command, env=env)
+                t = threading.Thread(target = check_disconnected, args = [self._process], daemon = True)
+                t.start()   
+            except PermissionError:
+                    print("Access denied to your Dolphin executable! Can't open Dolphin automatically")
+            except FileNotFoundError:
+                print("Path to your Dolphin executable is incorrect! Can't open Dolphin automatically")              
 
     def stop(self):
         """ Stop the console.
@@ -182,15 +178,8 @@ class Console:
         frame_ended = False
         while not frame_ended:
             message = self._slippstream.dispatch()
-            if message:
-                if message["type"] == "game_event":
-                    if len(message["payload"]) > 0:
-                        if self.is_dolphin:
-                            frame_ended = self.__handle_slippstream_events(base64.b64decode(message["payload"]))
-                        else:
-                            frame_ended = self.__handle_slippstream_events(message["payload"])
-                elif self._use_manual_bookends and message["type"] == "frame_end" and self._frame != -10000:
-                    frame_ended = True
+            if message and message["type"] == "game_event" and len(message["payload"]) > 0:
+                frame_ended = self.__handle_slippstream_events(base64.b64decode(message["payload"]))
             else:
                 return None
         return None
@@ -243,7 +232,7 @@ class Console:
                     self.playMusic("menu.mp3")
                 else:
                     mixer.music.stop()
-                return self._use_manual_bookends
+                return False
 
             elif(EventType(event_bytes[0]) in [EventType.PRE_FRAME, EventType.POST_FRAME, EventType.GECKO_CODES, EventType.ITEM_UPDATE]):
                 event_bytes = event_bytes[event_size:]
@@ -269,7 +258,7 @@ class Console:
         try:
             #print(os.path.dirname(__file__))
             dirname = os.path.dirname(__file__)
-            musicPath = os.path.join(dirname, 'music\\' + fileName)
+            musicPath = os.path.normpath(os.path.join(dirname, 'music/' + fileName))
             print(musicPath)
             mixer.music.stop()
             mixer.music.load(musicPath)
@@ -281,15 +270,17 @@ class Console:
         """ Return the path to dolphin's config directory
         (which is not necessarily the same as the home path)"""
         if self.path:
+            dirname = os.path.dirname(self.path)
+            normpath = os.path.normpath(os.path.join(dirname, "User/Config/Dolphin.ini"))
             if platform.system() == "Linux":
                 # First check if the config path is here in the same directory
-                if os.path.isdir(self.path + "/User/Config/"):
-                    return self.path + "/User/Config/"
+                if os.path.isdir(normpath):
+                    return normpath
                 # Otherwise, this must be an appimage install. Use the .config
-                return str(Path.home()) + "/.config/SlippiOnline/Config/"
-            else:
-                return self.path + "/User/Config/"
-        return ""
+                return os.path.join(str(Path.home()), ".config/SlippiOnline/Config/Dolphin.ini")
+            elif platform.system() == "Darwin": #mac
+                return os.path.join(self.path, "Contents/Resources/User/Config/Dolphin.ini")
+            return normpath
 
 
  

@@ -2,8 +2,7 @@
 An application for playing music while playing with Rollback Netcode. Since music is read from the disc, it's incompatable with Slippi rollback and it isn't planned to be implemented any time in the forseeable future. 
 
 # How to use:
-- Download the release for your operating system. At this time, I only have a release for Windows and Linux, but the python script works on MacOS as well. The dependencies are pygame, numpy, and py-enet and you can get them using pip. I'll write more about why I don't have an executable release for MacOS and how to run it from the source code later.
-- Set up the config files and music. The melee/config.txt file has four options:
+- Download the release for your operating system. At this time, I only have a release for Windows and Linux, but the python script works on MacOS as well. [Here is a guide on how to run SlippiMusic using the source code](https://github.com/Noah-C-S/SlippiMusic/wiki/Running-From-Source), which is how you run the program on MacOS.
 	- path: The full path to your dolphin executable. Something like "path = C:\Program Files\FM-Slippi\Dolphin.exe". This expects a .exe on Windows, a .App file on MacOS, and works with either an executable or the .AppImage on Linux.
 	- slippi_port: The port number that Slippi will use. This is ignored if you provide a path; instead it will read the slippispectatorlocalport property your Dolphin.ini file to figure out the port number. This defaults to the Slippi default (51441) if neither this nor a valid Dolphin path is provided.
 	- volume: 0 is mute, 100 is loudest

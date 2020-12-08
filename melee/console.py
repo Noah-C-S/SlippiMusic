@@ -16,7 +16,6 @@ import sys
 from pathlib import Path
 from pygame import mixer
 from pygame import error as pg_error
-import numpy as np
 
 from melee.slippstream import SlippstreamClient, CommType, EventType
 
@@ -205,8 +204,8 @@ class Console:
                 payload_size = event_bytes[1]
                 num_commands = (payload_size - 1) // 3
                 for i in range(0, num_commands):
-                    command = np.ndarray((1,), ">B", event_bytes, cursor)[0]
-                    command_len = np.ndarray((1,), ">H", event_bytes, cursor + 0x1)[0]
+                    command = int(event_bytes[cursor])
+                    command_len = (int(event_bytes[cursor + 0x1]) << 8) + int(event_bytes[cursor + 0x2])
                     self.eventsize[command] = command_len+1
                     cursor += 3
                 event_bytes = event_bytes[payload_size + 1:]
@@ -217,7 +216,8 @@ class Console:
             elif EventType(event_bytes[0]) == EventType.GAME_START:
                 #self.__game_start(gamestate, event_bytes)
                 print("Game start")
-                stage = np.ndarray((1,), ">H", event_bytes, 0x13)[0]
+                stage = event_bytes[0x14]
+                stage = (int(event_bytes[0x13]) << 8) + int(event_bytes[0x14])
                 print(stage)
                 if(self.fileNames[stage] != None):
                     self.playMusic(self.fileNames[stage])

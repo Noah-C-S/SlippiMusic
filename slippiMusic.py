@@ -8,6 +8,7 @@ path = None
 port = 51441
 volume = 70
 menu = False
+iso_path = None
 
 #simple parser for the config file
 configPath = melee.console.get_slippiMusic_config_path()
@@ -39,6 +40,8 @@ else:
                 sys.exit(-1)
         elif var == "menu":
             menu = split[1].strip().lower()[0] in ["y", "t"]
+        elif var == "iso_path":
+            iso_path = os.path.normpath(split[1].strip())
     
 
 console = melee.Console(path=path,
@@ -55,7 +58,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 # Run the console
 if(path):
-    console.run()
+    console.run(iso_path = iso_path)
 
 # Connect to the console
 while True:
@@ -64,7 +67,7 @@ while True:
         print("Connected to console!")
         break
     user_input = input("ERROR: Failed to connect to the console. Try again? y/n ")
-    if(str(user_input).strip()[0] != 'y'):    
+    if(str(user_input).strip().lower()[0] != 'y'):    
         sys.exit(-1)
     
     

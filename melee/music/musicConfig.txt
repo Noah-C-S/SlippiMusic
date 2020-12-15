@@ -1,6 +1,8 @@
 2:fountain.mp3
-3:stadium.mp3
+3:loop.mp3
 8:yoshis.mp3
 28:dreamland.mp3
 31:battlefield.mp3
+31:final.mp3
 32:final.mp3
+menu:menu.mp3

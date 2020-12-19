@@ -60,7 +60,7 @@ class SlippstreamClient():
         while event_type not in [enet.EVENT_TYPE_RECEIVE]:
             wait_time = 1000
             try:
-                event = self._host.service(wait_time)
+                event = self._host.service(timeout = wait_time)
                 event_type = event.type
             except OSError:
                 print("OSError! Reconnecting...")
@@ -68,7 +68,7 @@ class SlippstreamClient():
                 continue
 
             if event.type == enet.EVENT_TYPE_NONE:
-                pass
+                return None
                 #print("none event recieved")
             if event.type == enet.EVENT_TYPE_RECEIVE:
                 try:

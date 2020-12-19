@@ -59,6 +59,9 @@ class Console:
         self._frame = 0
         self._process = None
         self._stocks = [-1]*4
+        self._current_loop = None
+        
+        
         try:
             mixer.init()
         except pg_error:
@@ -79,6 +82,10 @@ class Console:
         else:
             for line in configFile:
                 split = line.split(":")
+                if(len(split) < 2):
+                    continue
+                for i in range(len(split)):
+                    split[i] = split[i].strip()
                 try:
                     stageID = int(split[0])
                 except ValueError:
@@ -90,7 +97,7 @@ class Console:
                     continue #skip invalid
                 if(self.fileNames[stageID] is None):
                     self.fileNames[stageID] = []
-                self.fileNames[stageID].append(split[1].rstrip())
+                self.fileNames[stageID].append(split[1:])
         #self._slippstream = SlippstreamClient(self.slippi_address, self.slippi_port)        
         if self.path:
             # Setup some dolphin config options
@@ -122,7 +129,8 @@ class Console:
         to_return = self._slippstream.connect()
         if(to_return):
             if(self.menu):
-                self.playMusic("menu.mp3")
+                stageFiles = self.fileNames[MENU]
+                self.playMusic(stageFiles[random.randrange(len(stageFiles))])
         return to_return
 
 
@@ -180,13 +188,15 @@ class Console:
             GameState object that represents new current state of the game"""
         frame_ended = False
         while not frame_ended:
+            if(self._current_loop is not None):
+                mixer.music.queue(self._current_loop)
             message = self._slippstream.dispatch()
             if(message and message["type"] == "connect_reply"):
                 self.cursor = message["cursor"]
             if message and message["type"] == "game_event" and len(message["payload"]) > 0:
                 frame_ended = self.__handle_slippstream_events(base64.b64decode(message["payload"]))
             else:
-                return None
+                continue
         return None
         """gamestate = self._temp_gamestate
         self._temp_gamestate = None
@@ -240,7 +250,7 @@ class Console:
                 if(self.menu and self.fileNames[MENU] != None):
                     if(self._stocks.count(0) >= int((4 - self._stocks.count(-1)) / 2)): #Check if game ended in not LRAS
                         time.sleep(2) #magic, time that the "GAME" message is on screen in melee
-                    stageFiles = self.fileNames[0]
+                    stageFiles = self.fileNames[MENU]
                     self.playMusic(stageFiles[random.randrange(len(stageFiles))])
                 return False
 
@@ -274,11 +284,18 @@ class Console:
         try:
             #print(os.path.dirname(__file__))
             dirname = os.path.dirname(__file__)
-            musicPath = os.path.normpath(os.path.join(dirname, 'music/' + fileName))
+            musicPath = os.path.normpath(os.path.join(dirname, 'music/' + fileName[0]))
             print(musicPath)
             mixer.music.stop()
             mixer.music.load(musicPath)
-            mixer.music.play(-1)
+            if(len(fileName) == 1):
+                self._current_loop = None
+                mixer.music.play(-1)
+            else:
+                self._current_loop = os.path.normpath(os.path.join(dirname, 'music/' + fileName[1]))
+                print(self._current_loop)
+                mixer.music.queue(self._current_loop)
+                mixer.music.play()
         except pg_error:
             print("Couldn't play the media. Usually means the filename is wrong.")        
 

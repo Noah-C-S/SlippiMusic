@@ -13,19 +13,14 @@ import subprocess
 import platform
 import base64
 import sys
+import random
 from pathlib import Path
 from pygame import mixer
 from pygame import error as pg_error
-import numpy as np
 
 from melee.slippstream import SlippstreamClient, CommType, EventType
 
-
-class SlippiVersionTooLow(Exception):
-    """Raised when the Slippi version is not recent enough"""
-    def __init__(self, message):
-        self.message = message
-
+MENU = 0 #"Stage ID" for the menu music. In reality, 0 is a DUMMY stage which crashes the game. 
 #Gets the config file's path, which doesn't work in slippiMusic.py for some reason
 def get_slippiMusic_config_path():
     return os.path.join(os.path.dirname(__file__), 'config.txt')
@@ -63,6 +58,10 @@ class Console:
         self.cursor = 0
         self._frame = 0
         self._process = None
+        self._stocks = [-1]*4
+        self._current_loop = None
+        
+        
         try:
             mixer.init()
         except pg_error:
@@ -83,13 +82,22 @@ class Console:
         else:
             for line in configFile:
                 split = line.split(":")
+                if(len(split) < 2):
+                    continue
+                for i in range(len(split)):
+                    split[i] = split[i].strip()
                 try:
                     stageID = int(split[0])
-                    if(stageID > 32):
-                        continue #skip invalid
-                    self.fileNames[stageID] = split[1].rstrip()
                 except ValueError:
-                    continue
+                    if(split[0].lower() == "menu"):
+                        stageID = MENU
+                    else:
+                        continue
+                if(stageID > 32):
+                    continue #skip invalid
+                if(self.fileNames[stageID] is None):
+                    self.fileNames[stageID] = []
+                self.fileNames[stageID].append(split[1:])
         #self._slippstream = SlippstreamClient(self.slippi_address, self.slippi_port)        
         if self.path:
             # Setup some dolphin config options
@@ -97,14 +105,16 @@ class Console:
             config = configparser.SafeConfigParser()
             config.read(dolphin_config_path)
             try:
-                self.slippi_port = int(config["Core"]["slippispectatorlocalport"])
-                if(not config["Core"]["slippienablespectator"]): #this needs to be true in order for this to connect to slippi
-                    config.set("Core", 'slippienablespectator', "True")
-                    try:
-                        with open(dolphin_config_path, 'w') as dolphinfile:
-                            config.write(dolphinfile)
-                    except PermissionError:
-                        print("Access denied to your Dolphin.ini file at " + dolphin_config_path + "! Means I can't automatically configure Dolphin. Run as administrator or make open that config file and make sure that \"slippienablespectator\" is set to True.")
+                self.slippi_port = int(config["Core"]["SlippiSpectatorLocalPort"])
+                if(config["Core"]["SlippiEnableSpectator"] != "True"): #this needs to be true in order for this to connect to slippi
+                    user_input = input("SlippiEnableSpectator is set to false in your config file! SlippiMusic requires this to be true. Set it to true now? y/n")
+                    if(str(user_input).strip().lower()[0] == 'y'):
+                        config.set("Core", 'SlippiEnableSpectator', "True")
+                        try:
+                            with open(dolphin_config_path, 'w') as dolphinfile:
+                                config.write(dolphinfile)
+                        except PermissionError:
+                            print("Access denied to your Dolphin.ini file at " + dolphin_config_path + "! Means I can't automatically configure Dolphin. Run as administrator or make open that config file and make sure that \"SlippiEnableSpectator\" is set to True.")
             except (configparser.NoSectionError, KeyError):
                 print("Invalid Dolphin.ini file! Usually means your Dolphin path is wrong.")
         self._slippstream = SlippstreamClient(self.slippi_address, self.slippi_port)
@@ -119,7 +129,8 @@ class Console:
         to_return = self._slippstream.connect()
         if(to_return):
             if(self.menu):
-                self.playMusic("menu.mp3")
+                stageFiles = self.fileNames[MENU]
+                self.playMusic(stageFiles[random.randrange(len(stageFiles))])
         return to_return
 
 
@@ -135,7 +146,12 @@ class Console:
         """
         if self.path:
             command = [os.path.normpath(self.path)]
+            if platform.system() == "Darwin": #mac
+                command.insert(0, "open") #can't run directly on mac, gotta call open on it
+                command.append("-W") #tells thread to wait until program exits
             if iso_path is not None:
+                if platform.system() == "Darwin":
+                    command.append("--args")
                 command.append("-e")
                 command.append(iso_path)
             if dolphin_config_path is not None:
@@ -146,9 +162,6 @@ class Console:
                 for var, value in environment_vars.items():
                     env[var] = value
             #print(command)
-            if platform.system() == "Darwin": #mac
-                command.insert(0, "open") #can't run directly on mac, gotta call open on it
-                command.append("-W") #tells thread to wait until program exits
             try:
                 self._process = subprocess.Popen(command, env=env)
                 t = threading.Thread(target = check_disconnected, args = [self._process], daemon = True)
@@ -177,11 +190,15 @@ class Console:
             GameState object that represents new current state of the game"""
         frame_ended = False
         while not frame_ended:
+            if(self._current_loop is not None):
+                mixer.music.queue(self._current_loop)
             message = self._slippstream.dispatch()
+            if(message and message["type"] == "connect_reply"):
+                self.cursor = message["cursor"]
             if message and message["type"] == "game_event" and len(message["payload"]) > 0:
                 frame_ended = self.__handle_slippstream_events(base64.b64decode(message["payload"]))
             else:
-                return None
+                continue
         return None
         """gamestate = self._temp_gamestate
         self._temp_gamestate = None
@@ -205,8 +222,8 @@ class Console:
                 payload_size = event_bytes[1]
                 num_commands = (payload_size - 1) // 3
                 for i in range(0, num_commands):
-                    command = np.ndarray((1,), ">B", event_bytes, cursor)[0]
-                    command_len = np.ndarray((1,), ">H", event_bytes, cursor + 0x1)[0]
+                    command = int(event_bytes[cursor])
+                    command_len = (int(event_bytes[cursor + 0x1]) << 8) + int(event_bytes[cursor + 0x2])
                     self.eventsize[command] = command_len+1
                     cursor += 3
                 event_bytes = event_bytes[payload_size + 1:]
@@ -217,10 +234,13 @@ class Console:
             elif EventType(event_bytes[0]) == EventType.GAME_START:
                 #self.__game_start(gamestate, event_bytes)
                 print("Game start")
-                stage = np.ndarray((1,), ">H", event_bytes, 0x13)[0]
+                self._stocks = [-1]*4
+                stage = event_bytes[0x14]
+                stage = (int(event_bytes[0x13]) << 8) + int(event_bytes[0x14])
                 print(stage)
                 if(self.fileNames[stage] != None):
-                    self.playMusic(self.fileNames[stage])
+                    stageFiles = self.fileNames[stage]
+                    self.playMusic(stageFiles[random.randrange(len(stageFiles))])
                 else:
                     mixer.music.stop()
                 event_bytes = event_bytes[event_size:]
@@ -228,13 +248,19 @@ class Console:
             elif EventType(event_bytes[0]) == EventType.GAME_END:
                 event_bytes = event_bytes[event_size:]
                 print("Game end")
-                if(self.menu):
-                    self.playMusic("menu.mp3")
-                else:
-                    mixer.music.stop()
+                mixer.music.stop()
+                if(self.menu and self.fileNames[MENU] != None):
+                    if(self._stocks.count(0) >= int((4 - self._stocks.count(-1)) / 2)): #Check if game ended in not LRAS
+                        time.sleep(2) #magic, time that the "GAME" message is on screen in melee
+                    stageFiles = self.fileNames[MENU]
+                    self.playMusic(stageFiles[random.randrange(len(stageFiles))])
                 return False
 
-            elif(EventType(event_bytes[0]) in [EventType.PRE_FRAME, EventType.POST_FRAME, EventType.GECKO_CODES, EventType.ITEM_UPDATE]):
+            elif(EventType(event_bytes[0]) in [EventType.PRE_FRAME, EventType.GECKO_CODES, EventType.ITEM_UPDATE]):
+                event_bytes = event_bytes[event_size:]
+                
+            elif EventType(event_bytes[0]) == EventType.POST_FRAME:
+                self._stocks[event_bytes[0x5]] = event_bytes[0x21]
                 event_bytes = event_bytes[event_size:]
                 
             elif EventType(event_bytes[0]) == EventType.FRAME_BOOKEND:
@@ -253,16 +279,25 @@ class Console:
                 print("\tGot invalid event type: ", event_bytes[0])
                 return False
         return False
-
+    
+        
+    
     def playMusic(self, fileName):
         try:
             #print(os.path.dirname(__file__))
             dirname = os.path.dirname(__file__)
-            musicPath = os.path.normpath(os.path.join(dirname, 'music/' + fileName))
+            musicPath = os.path.normpath(os.path.join(dirname, 'music/' + fileName[0]))
             print(musicPath)
             mixer.music.stop()
             mixer.music.load(musicPath)
-            mixer.music.play(-1)
+            if(len(fileName) == 1):
+                self._current_loop = None
+                mixer.music.play(-1)
+            else:
+                self._current_loop = os.path.normpath(os.path.join(dirname, 'music/' + fileName[1]))
+                print(self._current_loop)
+                mixer.music.queue(self._current_loop)
+                mixer.music.play()
         except pg_error:
             print("Couldn't play the media. Usually means the filename is wrong.")        
 

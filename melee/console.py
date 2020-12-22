@@ -163,7 +163,6 @@ class Console:
                     env[var] = value
             #print(command)
             try:
-                print(command)
                 self._process = subprocess.Popen(command, env=env)
                 t = threading.Thread(target = check_disconnected, args = [self._process], daemon = True)
                 t.start()   

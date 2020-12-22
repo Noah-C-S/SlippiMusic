@@ -146,7 +146,12 @@ class Console:
         """
         if self.path:
             command = [os.path.normpath(self.path)]
+            if platform.system() == "Darwin": #mac
+                command.insert(0, "open") #can't run directly on mac, gotta call open on it
+                command.append("-W") #tells thread to wait until program exits
             if iso_path is not None:
+                if platform.system() == "Darwin":
+                    command.append("--args")
                 command.append("-e")
                 command.append(iso_path)
             if dolphin_config_path is not None:
@@ -157,10 +162,8 @@ class Console:
                 for var, value in environment_vars.items():
                     env[var] = value
             #print(command)
-            if platform.system() == "Darwin": #mac
-                command.insert(0, "open") #can't run directly on mac, gotta call open on it
-                command.append("-W") #tells thread to wait until program exits
             try:
+                print(command)
                 self._process = subprocess.Popen(command, env=env)
                 t = threading.Thread(target = check_disconnected, args = [self._process], daemon = True)
                 t.start()   

@@ -1,5 +1,5 @@
-path = /path/to/dolphin/executable/such/as/.exe/.app/or/.appImage/
+path = C:/Program Files/slippi2/FM-Slippi/Dolphin.exe
 slippi_port = 51441
 volume = 40
 menu = True
-iso_path = /path/to/your/Super Smash Bros. Melee (USA) (En,Ja) (v1.02).iso
+iso_path = C:/Users/noahc/Documents/Slippi/Super Smash Bros. Melee (USA) (v1.02).iso

@@ -6,7 +6,6 @@ is your method to start and stop Dolphin, set configs, and get the latest GameSt
 from collections import defaultdict
 
 import time
-import threading
 import os
 import configparser
 import subprocess
@@ -18,17 +17,12 @@ from pathlib import Path
 from pygame import mixer
 from pygame import error as pg_error
 
-from melee.slippstream import SlippstreamClient, CommType, EventType
+from melee.slippstream import SlippstreamClient, EventType
 
 MENU = 0 #"Stage ID" for the menu music. In reality, 0 is a DUMMY stage which crashes the game. 
 #Gets the config file's path, which doesn't work in slippiMusic.py for some reason
 def get_slippiMusic_config_path():
     return os.path.join(os.path.dirname(__file__), 'config.txt')
-
-def check_disconnected(process):
-    process.wait()
-    print("Dolphin closed! exiting...")
-    os._exit(0)
 
 # pylint: disable=too-many-instance-attributes
 class Console:
@@ -61,12 +55,10 @@ class Console:
         self._stocks = [-1]*4
         self._current_loop = None
         
-        
         try:
             mixer.init()
         except pg_error:
             print("Failed to initialize the mixer! Check that your audio devices are working properly")
-        #self.volume = volume
         else:
             mixer.music.set_volume(volume/100.0)
         
@@ -124,7 +116,7 @@ class Console:
     def connect(self):
         """ Connects to the Slippi server (dolphin or wii).
         Returns:
-            True is successful, False otherwise
+            True if successful, False otherwise
         """
         to_return = self._slippstream.connect()
         if(to_return):
@@ -164,8 +156,6 @@ class Console:
             #print(command)
             try:
                 self._process = subprocess.Popen(command, env=env)
-                t = threading.Thread(target = check_disconnected, args = [self._process], daemon = True)
-                t.start()   
             except PermissionError:
                     print("Access denied to your Dolphin executable! Can't open Dolphin automatically")
             except FileNotFoundError:
@@ -192,6 +182,9 @@ class Console:
         while not frame_ended:
             if(self._current_loop is not None):
                 mixer.music.queue(self._current_loop)
+            if(self._process is not None and self._process.poll() is not None):
+                print("Dolphin closed! Exiting...")
+                sys.exit(0)
             message = self._slippstream.dispatch()
             if(message and message["type"] == "connect_reply"):
                 self.cursor = message["cursor"]
@@ -235,20 +228,19 @@ class Console:
                 #self.__game_start(gamestate, event_bytes)
                 print("Game start")
                 self._stocks = [-1]*4
-                stage = event_bytes[0x14]
                 stage = (int(event_bytes[0x13]) << 8) + int(event_bytes[0x14])
                 print(stage)
                 if(self.fileNames[stage] != None):
                     stageFiles = self.fileNames[stage]
                     self.playMusic(stageFiles[random.randrange(len(stageFiles))])
                 else:
-                    mixer.music.stop()
+                    self.stop_music()
                 event_bytes = event_bytes[event_size:]
 
             elif EventType(event_bytes[0]) == EventType.GAME_END:
                 event_bytes = event_bytes[event_size:]
                 print("Game end")
-                mixer.music.stop()
+                self.stop_music()
                 if(self.menu and self.fileNames[MENU] != None):
                     if(self._stocks.count(0) >= int((4 - self._stocks.count(-1)) / 2)): #Check if game ended in not LRAS
                         time.sleep(2) #magic, time that the "GAME" message is on screen in melee
@@ -299,8 +291,12 @@ class Console:
                 mixer.music.queue(self._current_loop)
                 mixer.music.play()
         except pg_error:
-            print("Couldn't play the media. Usually means the filename is wrong.")        
-
+            print("Couldn't play the media. Usually means the filename is wrong.")
+    
+    
+    def stop_music(self):
+        mixer.music.stop()
+    
     def _get_dolphin_config_path(self):
         """ Return the path to dolphin's config directory
         (which is not necessarily the same as the home path)"""
